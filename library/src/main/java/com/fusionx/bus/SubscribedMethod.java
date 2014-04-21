@@ -19,10 +19,11 @@ public class SubscribedMethod implements Comparable<SubscribedMethod> {
 
     private final Object mObject;
 
-    public SubscribedMethod(final Object object, final Method method, final int priority) {
+    public SubscribedMethod(final Object object, final Method method,
+            final Subscribe subscribe, final int priority) {
         mObject = object;
         mMethod = method;
-        mSubscribe = method.getAnnotation(Subscribe.class);
+        mSubscribe = subscribe;
 
         final Class[] parameterTypes = method.getParameterTypes();
         if (parameterTypes.length != 1) {
@@ -64,11 +65,12 @@ public class SubscribedMethod implements Comparable<SubscribedMethod> {
         return mSubscribe.cancellable();
     }
 
-    public static Handler getHandler(final SubscribedMethod subscribedMethod,
-            final Looper postingLooper) {
-        switch (subscribedMethod.getSubscribe().threadType()) {
-            case POSTING:
-                return new Handler(postingLooper);
+    public ThreadType getThreadType() {
+        return mSubscribe.threadType();
+    }
+
+    public Handler getHandler() {
+        switch (mSubscribe.threadType()) {
             case MAIN:
                 return mMainThreadHandler;
         }

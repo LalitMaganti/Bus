@@ -1,12 +1,11 @@
 package com.fusionx.bus;
 
-import android.os.Handler;
 import android.os.Looper;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PostRunnable implements Runnable {
 
@@ -14,40 +13,48 @@ public class PostRunnable implements Runnable {
 
     private final Object mEvent;
 
-    private final Looper mPostingLooper;
-
-    public PostRunnable(final Object event, final EventBatch batch, final Looper looper) {
+    public PostRunnable(final Object event, final EventBatch batch) {
         mEvent = event;
         mEventBatch = batch;
-        mPostingLooper = looper;
     }
 
     @Override
     public void run() {
-        boolean cancelled = false;
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
         SubscribedMethod subscribedMethod = mEventBatch.getNextMethod();
+        final Looper looper = Looper.myLooper();
 
-        while (subscribedMethod != null && !cancelled) {
-            final SubscribedMethod finalSubscribedMethod = subscribedMethod;
-            final FutureTask<Object> futureTask = new FutureTask<>(new Callable<Object>() {
+        while (subscribedMethod != null) {
+            /*if (cancelled && subscribedMethod.getSubscribe().threadType() != ThreadType.POSTING) {
+                continue;
+            } else*/
+            if (cancelled.get()) {
+                break;
+            }
+            final SubscribedMethod subs = subscribedMethod;
+            final FutureTask<Void> runnable = new FutureTask<>(new Runnable() {
                 @Override
-                public Object call() throws Exception {
+                public void run() {
+                    Object returnValue;
                     try {
-                        return finalSubscribedMethod.getMethod()
-                                .invoke(finalSubscribedMethod.getObject(), mEvent);
+                        returnValue = subs.getMethod().invoke(subs.getObject(), mEvent);
                     } catch (final IllegalAccessException | InvocationTargetException e) {
                         e.printStackTrace();
+                        return;
                     }
-                    return null;
+                    cancelled.set(subs.isCancellable() && (boolean) returnValue);
                 }
-            });
-            final Handler handler = SubscribedMethod.getHandler(finalSubscribedMethod,
-                    mPostingLooper);
-            handler.post(futureTask);
-            try {
-                cancelled = subscribedMethod.isCancellable() && (boolean) futureTask.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
+            }, null);
+            if (subs.getThreadType() == ThreadType.POSTING ||
+                    subs.getThreadType() == ThreadType.MAIN && looper == Looper.getMainLooper()) {
+                runnable.run();
+            } else {
+                subscribedMethod.getHandler().post(runnable);
+                try {
+                    runnable.get();
+                } catch (final InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
             }
             subscribedMethod = mEventBatch.getNextMethod();
         }

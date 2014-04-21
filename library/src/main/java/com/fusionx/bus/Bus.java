@@ -1,25 +1,21 @@
 package com.fusionx.bus;
 
-import android.os.Looper;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import gnu.trove.map.hash.THashMap;
 
 public class Bus {
 
-    private final static Map<Class, Method[]> sClassMethodCache = new THashMap<>();
+    private final static Map<Class, List<Method>> sClassMethodCache = new THashMap<>();
 
     private static final int DEFAULT_PRIORITY = 100;
-
-    private final ExecutorService mExecutorService = Executors.newSingleThreadExecutor();
 
     private final Map<Object, List<SubscribedMethod>> mSubscribedObjectMap = new THashMap<>();
 
@@ -70,36 +66,49 @@ public class Bus {
 
     private synchronized void registerInternal(final Object registeredObject, final int priority,
             final boolean sticky) {
-        List<SubscribedMethod> methodList = mSubscribedObjectMap.get(registeredObject);
-        if (methodList != null) {
+        if (mSubscribedObjectMap.get(registeredObject) != null) {
             throw new IllegalArgumentException();
         }
 
-        final Method[] methods = getMethods(registeredObject.getClass());
-        methodList = new ArrayList<>();
+        List<Method> methods = sClassMethodCache.get(registeredObject.getClass());
+        final boolean fromCache = methods != null;
+        if (!fromCache) {
+            methods = Arrays.asList(registeredObject.getClass().getDeclaredMethods());
+        }
+        final ArrayList<Method> cached = fromCache ? null : new ArrayList<Method>();
 
-        final Looper looper = Looper.myLooper();
+        final List<SubscribedMethod> subscribedMethods = new ArrayList<>();
         for (final Method method : methods) {
+            final Subscribe subscribe = method.getAnnotation(Subscribe.class);
+            if (subscribe == null) {
+                continue;
+            }
+
             final SubscribedMethod subscribedMethod = new SubscribedMethod(registeredObject,
-                    method, priority);
+                    method, subscribe, priority);
             addSubscribedMethodToMap(subscribedMethod);
-            methodList.add(subscribedMethod);
+            subscribedMethods.add(subscribedMethod);
 
             if (sticky) {
                 final Object event = mStickyEventMap.get(subscribedMethod.getEventClass());
                 if (event != null) {
-                    postSingleEventClass(event, subscribedMethod.getEventClass(), looper);
+                    postSingleEventClass(event, subscribedMethod.getEventClass());
                 }
             }
+            if (!fromCache) {
+                cached.add(method);
+            }
         }
-        mSubscribedObjectMap.put(registeredObject, methodList);
+        if (!fromCache) {
+            cacheSubscribedMethods(registeredObject.getClass(), cached);
+        }
+        mSubscribedObjectMap.put(registeredObject, subscribedMethods);
     }
 
     private synchronized void postInternal(final Object event, final boolean sticky) {
-        final Looper looper = Looper.myLooper();
         Class eventClass = event.getClass();
         while (eventClass != null) {
-            postSingleEventClass(event, eventClass, looper);
+            postSingleEventClass(event, eventClass);
             eventClass = eventClass.getSuperclass();
         }
 
@@ -108,12 +117,11 @@ public class Bus {
         }
     }
 
-    private void postSingleEventClass(final Object event, final Class eventClass,
-            final Looper postingLooper) {
+    private void postSingleEventClass(final Object event, final Class eventClass) {
         final List<SubscribedMethod> methodList = mEventToSubscriberMap.get(eventClass);
         if (methodList != null) {
-            mExecutorService.submit(new PostRunnable(event, new EventBatch(methodList),
-                    postingLooper));
+            final PostRunnable runnable = new PostRunnable(event, new EventBatch(methodList));
+            runnable.run();
         }
     }
 
@@ -130,6 +138,7 @@ public class Bus {
                 mEventToSubscriberMap.remove(subscribedMethod.getEventClass());
             }
         }
+        mSubscribedObjectMap.remove(registedObject);
     }
 
     private void addSubscribedMethodToMap(final SubscribedMethod subscribedMethod) {
@@ -142,12 +151,8 @@ public class Bus {
         methodList.add(subscribedMethod);
     }
 
-    private Method[] getMethods(final Class<?> registeredClass) {
-        Method[] methods = sClassMethodCache.get(registeredClass);
-        if (methods == null) {
-            methods = registeredClass.getDeclaredMethods();
-            sClassMethodCache.put(registeredClass, methods);
-        }
-        return methods;
+    private void cacheSubscribedMethods(final Class<?> registeredClass,
+            final List<Method> methods) {
+        sClassMethodCache.put(registeredClass, methods);
     }
 }
