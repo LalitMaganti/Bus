@@ -24,13 +24,7 @@ public class PostRunnable implements Runnable {
         SubscribedMethod subscribedMethod = mEventBatch.getNextMethod();
         final Looper looper = Looper.myLooper();
 
-        while (subscribedMethod != null) {
-            /*if (cancelled && subscribedMethod.getSubscribe().threadType() != ThreadType.POSTING) {
-                continue;
-            } else*/
-            if (cancelled.get()) {
-                break;
-            }
+        while (subscribedMethod != null && !cancelled.get()) {
             final SubscribedMethod subs = subscribedMethod;
             final FutureTask<Void> runnable = new FutureTask<>(new Runnable() {
                 @Override
@@ -50,10 +44,12 @@ public class PostRunnable implements Runnable {
                 runnable.run();
             } else {
                 subscribedMethod.getHandler().post(runnable);
-                try {
-                    runnable.get();
-                } catch (final InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
+                if (subs.isCancellable()) {
+                    try {
+                        runnable.get();
+                    } catch (final InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             subscribedMethod = mEventBatch.getNextMethod();
