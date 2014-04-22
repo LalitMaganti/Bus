@@ -4,7 +4,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +91,7 @@ public class Bus {
             if (sticky) {
                 final Object event = mStickyEventMap.get(subscribedMethod.getEventClass());
                 if (event != null) {
-                    postSingleEventClass(event, subscribedMethod.getEventClass());
+                    postToSubscribers(event, Collections.singletonList(subscribedMethod));
                 }
             }
             if (!fromCache) {
@@ -120,9 +119,13 @@ public class Bus {
     private void postSingleEventClass(final Object event, final Class eventClass) {
         final List<SubscribedMethod> methodList = mEventToSubscriberMap.get(eventClass);
         if (methodList != null) {
-            final PostRunnable runnable = new PostRunnable(event, new EventBatch(methodList));
-            runnable.run();
+            postToSubscribers(event, methodList);
         }
+    }
+
+    private void postToSubscribers(final Object event, final List<SubscribedMethod> methodList) {
+        final PostRunnable runnable = new PostRunnable(event, new EventBatch(methodList));
+        runnable.run();
     }
 
     private synchronized void unregisterInternal(Object registedObject) {
