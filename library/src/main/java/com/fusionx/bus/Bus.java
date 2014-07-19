@@ -12,11 +12,11 @@ import gnu.trove.map.hash.THashMap;
 
 public class Bus {
 
-    private final static Map<Class, List<Method>> sClassMethodCache = new THashMap<>();
+    private static final Map<Class, List<Method>> sClassMethodCache = new THashMap<>();
 
     private static final int DEFAULT_PRIORITY = 100;
 
-    private final Map<Object, List<SubscribedMethod>> mSubscribedObjectMap = new THashMap<>();
+    private final Map<Object, List<SubscribedMethod>> mSubscriberMap = new THashMap<>();
 
     private final Map<Class, List<SubscribedMethod>> mEventToSubscriberMap = new THashMap<>();
 
@@ -65,7 +65,7 @@ public class Bus {
 
     private synchronized void registerInternal(final Object registeredObject, final int priority,
             final boolean sticky) {
-        if (mSubscribedObjectMap.get(registeredObject) != null) {
+        if (mSubscriberMap.get(registeredObject) != null) {
             throw new IllegalArgumentException();
         }
 
@@ -99,9 +99,9 @@ public class Bus {
             }
         }
         if (!fromCache) {
-            cacheSubscribedMethods(registeredObject.getClass(), cached);
+            cacheClassMethods(registeredObject.getClass(), cached);
         }
-        mSubscribedObjectMap.put(registeredObject, subscribedMethods);
+        mSubscriberMap.put(registeredObject, subscribedMethods);
     }
 
     private synchronized void postInternal(final Object event, final boolean sticky) {
@@ -129,7 +129,7 @@ public class Bus {
     }
 
     private synchronized void unregisterInternal(Object registedObject) {
-        final List<SubscribedMethod> methodList = mSubscribedObjectMap.get(registedObject);
+        final List<SubscribedMethod> methodList = mSubscriberMap.get(registedObject);
         if (methodList == null) {
             throw new IllegalArgumentException();
         }
@@ -141,7 +141,7 @@ public class Bus {
                 mEventToSubscriberMap.remove(subscribedMethod.getEventClass());
             }
         }
-        mSubscribedObjectMap.remove(registedObject);
+        mSubscriberMap.remove(registedObject);
     }
 
     private void addSubscribedMethodToMap(final SubscribedMethod subscribedMethod) {
@@ -154,8 +154,7 @@ public class Bus {
         methodList.add(subscribedMethod);
     }
 
-    private void cacheSubscribedMethods(final Class<?> registeredClass,
-            final List<Method> methods) {
+    private void cacheClassMethods(final Class<?> registeredClass, final List<Method> methods) {
         sClassMethodCache.put(registeredClass, methods);
     }
 }

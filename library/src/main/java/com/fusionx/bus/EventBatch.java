@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.PriorityQueue;
 
 /**
- * Represents a batch of events withing which priority makes the difference
+ * Represents a batch of events within which priority makes the difference
  */
 public class EventBatch {
 

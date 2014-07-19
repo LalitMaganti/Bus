@@ -2,6 +2,7 @@ package com.fusionx.bus;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 
 import java.lang.reflect.Method;
 
@@ -48,7 +49,7 @@ public class SubscribedMethod implements Comparable<SubscribedMethod> {
     }
 
     @Override
-    public int compareTo(final SubscribedMethod another) {
+    public int compareTo(@NonNull final SubscribedMethod another) {
         if (mPriority > another.mPriority) {
             return -1;
         } else if (mPriority < another.mPriority) {
