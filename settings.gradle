@@ -1,2 +1,4 @@
-include ':example'
-include ':library'
+include ':bus-library', ':bus-example'
+
+project(':bus-library').projectDir = new File('library')
+project(':bus-example').projectDir = new File('example')
