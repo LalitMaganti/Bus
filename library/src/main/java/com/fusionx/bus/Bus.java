@@ -1,5 +1,7 @@
 package com.fusionx.bus;
 
+import android.util.Log;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +68,8 @@ public class Bus {
     private synchronized void registerInternal(final Object registeredObject, final int priority,
             final boolean sticky) {
         if (mSubscriberMap.get(registeredObject) != null) {
-            throw new IllegalArgumentException();
+            Log.e("Bus", "Already registered this object");
+            return;
         }
 
         List<Method> methods = sClassMethodCache.get(registeredObject.getClass());
@@ -118,9 +121,10 @@ public class Bus {
 
     private void postSingleEventClass(final Object event, final Class eventClass) {
         final List<SubscribedMethod> methodList = mEventToSubscriberMap.get(eventClass);
-        if (methodList != null) {
-            postToSubscribers(event, methodList);
+        if (methodList == null) {
+            return;
         }
+        postToSubscribers(event, methodList);
     }
 
     private void postToSubscribers(final Object event, final List<SubscribedMethod> methodList) {
@@ -131,7 +135,8 @@ public class Bus {
     private synchronized void unregisterInternal(Object registedObject) {
         final List<SubscribedMethod> methodList = mSubscriberMap.get(registedObject);
         if (methodList == null) {
-            throw new IllegalArgumentException();
+            Log.e("Bus", "This object is not registered");
+            return;
         }
         for (final SubscribedMethod subscribedMethod : methodList) {
             final List<SubscribedMethod> list = mEventToSubscriberMap.get(subscribedMethod
