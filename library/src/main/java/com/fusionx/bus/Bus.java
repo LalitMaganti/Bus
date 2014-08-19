@@ -6,24 +6,23 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import gnu.trove.map.hash.THashMap;
-
 public class Bus {
 
-    private static final Map<Class, List<Method>> sClassMethodCache = new THashMap<>();
+    private static final Map<Class, List<Method>> sClassMethodCache = new HashMap<>();
 
     private static final int DEFAULT_PRIORITY = 100;
 
-    private final Map<Object, List<SubscribedMethod>> mSubscriberMap = new THashMap<>();
+    private final Map<Object, List<SubscribedMethod>> mSubscriberMap = new HashMap<>();
 
-    private final Map<Class, List<SubscribedMethod>> mEventToSubscriberMap = new THashMap<>();
+    private final Map<Class, List<SubscribedMethod>> mEventToSubscriberMap = new HashMap<>();
 
     private final Map<Class, Object> mStickyEventMap =
-            Collections.synchronizedMap(new THashMap<Class, Object>());
+            Collections.synchronizedMap(new HashMap<Class, Object>());
 
     public void register(final Object registeredObject) {
         registerInternal(registeredObject, DEFAULT_PRIORITY, false);
