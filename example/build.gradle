@@ -3,7 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.12.+'
+        classpath 'com.android.tools.build:gradle:2.1.0-alpha3'
         classpath 'com.github.jcandksolutions.gradle:android-unit-test:1.2.+'
     }
 }
